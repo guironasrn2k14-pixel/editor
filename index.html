@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Jambalaya</title>
+<meta name="theme-color" content="#16305a">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Jambalaya">
+<script>
+if('serviceWorker' in navigator && location.protocol.indexOf('http')===0){
+  window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js').catch(function(){})});
+}
+</script>
+<script src="https://cdn.tailwindcss.com/3.4.17"></script>
+<script>tailwind.config={darkMode:'class'}</script>
+<script>try{if(localStorage.getItem('quintal:tema')==='escuro')document.documentElement.classList.add('dark')}catch(e){}</script>
+<style>
+html{font-size:18px}
+body{-webkit-tap-highlight-color:transparent}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #f59e0b;outline-offset:2px}
+</style>
+</head>
+<body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-50 min-h-screen pb-8">
+
+<header class="bg-[#16305a] dark:bg-slate-900 text-white px-4 pt-3 pb-4 sticky top-0 z-20 shadow">
+  <div class="flex items-center justify-between gap-2">
+    <button id="btnInstalar" class="hidden bg-white/15 hover:bg-white/25 rounded-full px-3 py-1 text-sm font-semibold">📲 Instalar app</button>
+    <div id="relogio" class="ml-auto text-right text-sm opacity-90"></div>
+  </div>
+  <div class="flex items-center gap-3 mt-1">
+    <div class="text-3xl bg-white/10 rounded-xl w-12 h-12 flex items-center justify-center" aria-hidden="true">🏠</div>
+    <div class="flex-1 min-w-0">
+      <h1 class="text-xl font-bold leading-tight">Jambalaya</h1>
+      <p class="text-sm opacity-90">Água &amp; Luz (5 Famílias) <span id="nuvem"></span></p>
+    </div>
+    <button id="btnTema" class="bg-white/15 hover:bg-white/25 rounded-full w-12 h-12 text-2xl" aria-label="Trocar entre tema claro e escuro">🌙</button>
+  </div>
+  <button id="btnZap" class="mt-3 w-full bg-green-600 hover:bg-green-700 active:bg-green-800 text-white font-bold rounded-xl py-3 text-lg">📋 Copiar resumo para o Zap</button>
+</header>
+
+<main class="max-w-3xl mx-auto px-4 pt-4">
+
+  <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-3 flex items-center gap-3">
+    <label for="mes" class="font-semibold">📅 Mês:</label>
+    <select id="mes" class="flex-1 bg-slate-100 dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-lg px-3 py-2 text-lg"></select>
+  </div>
+
+  <p class="mt-3 bg-sky-100 dark:bg-sky-950 text-sky-900 dark:text-sky-100 rounded-xl p-3">💡 Olá! Veja aqui quem já pagou e o que falta pagar este mês.</p>
+
+  <div class="grid grid-cols-2 gap-3 mt-3">
+    <div class="rounded-xl border-2 border-green-600 bg-white dark:bg-slate-900 p-3">
+      <div class="text-sm">Total arrecadado</div>
+      <div id="totPago" class="text-2xl font-extrabold text-green-700 dark:text-green-400"></div>
+      <div id="qtdPago" class="text-sm"></div>
+    </div>
+    <div class="rounded-xl border-2 border-red-600 bg-white dark:bg-slate-900 p-3">
+      <div class="text-sm">Falta pagar</div>
+      <div id="totPend" class="text-2xl font-extrabold text-red-700 dark:text-red-400"></div>
+      <div id="qtdPend" class="text-sm"></div>
+    </div>
+  </div>
+
+  <nav class="mt-4 flex border-b-2 border-slate-200 dark:border-slate-700 overflow-x-auto" role="tablist">
+    <button data-aba="geral" class="aba px-4 py-3 font-semibold whitespace-nowrap">📊 Visão Geral</button>
+    <button data-aba="hist" class="aba px-4 py-3 font-semibold whitespace-nowrap">🧾 Histórico</button>
+    <button data-aba="admin" class="aba px-4 py-3 font-semibold whitespace-nowrap">✏️ Lançar / Administrar</button>
+    <button data-aba="outros" class="aba px-4 py-3 font-semibold whitespace-nowrap">🏦 Caixinha do Quintal</button>
+  </nav>
+
+  <!-- VISÃO GERAL -->
+  <section id="aba-geral" class="mt-4">
+    <div class="bg-amber-50 dark:bg-slate-900 border-2 border-amber-400 rounded-xl p-4 mb-4">
+      <label for="minhaFam" class="block font-bold text-lg">👋 Qual é o seu nome?</label>
+      <select id="minhaFam" class="mt-2 w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-lg"></select>
+      <div id="meuValor" class="mt-3"></div>
+    </div>
+    <h2 id="tituloGeral" class="text-xl font-bold mb-3"></h2>
+    <div id="cards" class="space-y-3"></div>
+  </section>
+
+  <!-- HISTÓRICO -->
+  <section id="aba-hist" class="mt-4 hidden">
+    <h2 class="text-xl font-bold mb-3">Histórico de pagamentos</h2>
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
+      <input id="hBusca" type="search" placeholder="🔍 Buscar família" class="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2">
+      <select id="hMes" class="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2"></select>
+      <select id="hStatus" class="rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2">
+        <option value="pago">🟢 Só pagos</option>
+        <option value="pend">🔴 Só pendentes</option>
+        <option value="todos">Todos</option>
+      </select>
+    </div>
+    <div class="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700">
+      <table class="w-full text-left bg-white dark:bg-slate-900">
+        <thead class="bg-slate-100 dark:bg-slate-800 text-sm">
+          <tr><th class="p-3">Família</th><th class="p-3">Conta</th><th class="p-3">Mês</th><th class="p-3">Valor</th><th class="p-3">Situação</th></tr>
+        </thead>
+        <tbody id="hLinhas"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ADMIN -->
+  <section id="aba-admin" class="mt-4 hidden space-y-5">
+    <form id="fPagar" class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4 space-y-3">
+      <h2 class="text-xl font-bold">💵 Dar baixa em pagamento</h2>
+      <p id="fPagarMes" class="text-sm opacity-80"></p>
+      <label class="block">Família
+        <select id="pFam" class="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 px-3 py-2"></select>
+      </label>
+      <label class="block">Conta
+        <select id="pConta" class="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 px-3 py-2">
+          <option value="agua">💧 Água</option>
+          <option value="luz">⚡ Luz</option>
+        </select>
+      </label>
+      <label class="block">Data do pagamento
+        <input id="pData" type="date" class="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 px-3 py-2">
+      </label>
+      <div class="grid grid-cols-2 gap-3">
+        <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl py-3">🟢 Marcar como pago</button>
+        <button type="button" id="btnDesfazer" class="bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl py-3">🔴 Desfazer</button>
+      </div>
+    </form>
+
+    <form id="fValores" class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4 space-y-3">
+      <h2 class="text-xl font-bold">⚙️ Valores de cada casa</h2>
+      <p id="fValoresMes" class="font-semibold"></p>
+      <div id="valoresCampos" class="space-y-3"></div>
+      <p class="text-sm opacity-80">Digite quanto cada casa deve pagar neste mês. Pagamentos já feitos mantêm o valor que foi pago.</p>
+      <button class="w-full bg-[#16305a] hover:bg-[#1d3f75] text-white font-bold rounded-xl py-3">Salvar valores do mês</button>
+    </form>
+
+    <form id="fNomes" class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4 space-y-3">
+      <h2 class="text-xl font-bold">🏘️ Nomes das famílias</h2>
+      <div id="nomesCampos" class="space-y-2"></div>
+      <button class="w-full bg-[#16305a] hover:bg-[#1d3f75] text-white font-bold rounded-xl py-3">Salvar nomes</button>
+    </form>
+
+    <button id="btnLimpar" class="w-full border-2 border-red-600 text-red-700 dark:text-red-400 font-semibold rounded-xl py-3">Apagar TODOS os dados (de todos os celulares)</button>
+  </section>
+  <!-- OUTROS -->
+  <section id="aba-outros" class="mt-4 hidden space-y-5">
+    <div>
+      <h2 class="text-xl font-bold">🏦 Caixinha do quintal</h2>
+      <p class="opacity-80">Dinheiro juntado para gastos extras: reforma, portão, festa… Aqui não importa o mês escolhido lá em cima.</p>
+    </div>
+    <div id="fundoResumo"></div>
+    <div id="fundoCards" class="space-y-3"></div>
+
+    <form id="fContrib" class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4 space-y-3">
+      <h2 class="text-xl font-bold">💵 Registrar contribuição</h2>
+      <label class="block">Caixinha
+        <select id="cFundo" class="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 px-3 py-2"></select>
+      </label>
+      <label class="block">Família
+        <select id="cFam" class="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 px-3 py-2"></select>
+      </label>
+      <label class="block">Valor (R$)
+        <input id="cValor" type="number" step="0.01" min="0" class="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 px-3 py-2">
+      </label>
+      <label class="block">Data
+        <input id="cData" type="date" class="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 px-3 py-2">
+      </label>
+      <div class="grid grid-cols-2 gap-3">
+        <button type="submit" class="bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl py-3">🟢 Marcar como pago</button>
+        <button type="button" id="btnDesfazerC" class="bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl py-3">🔴 Desfazer</button>
+      </div>
+    </form>
+
+    <form id="fNovoFundo" class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4 space-y-3">
+      <h2 class="text-xl font-bold">➕ Nova caixinha</h2>
+      <label class="block">Para que é o dinheiro?
+        <input id="nfNome" required maxlength="40" placeholder="Ex.: Reforma do portão" class="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 px-3 py-2">
+      </label>
+      <label class="block">Meta, valor total estimado (R$)
+        <input id="nfMeta" type="number" step="0.01" min="1" required class="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 px-3 py-2">
+      </label>
+      <label class="block">Valor sugerido por família (R$)
+        <input id="nfSug" type="number" step="0.01" min="0" class="mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 px-3 py-2">
+      </label>
+      <p class="text-sm opacity-80">Se deixar o valor sugerido em branco, a meta é dividida igualmente entre as famílias.</p>
+      <button class="w-full bg-[#16305a] hover:bg-[#1d3f75] text-white font-bold rounded-xl py-3">Criar caixinha</button>
+    </form>
+  </section>
+</main>
+
+<div id="aviso" class="fixed left-1/2 -translate-x-1/2 bottom-6 bg-slate-900 text-white dark:bg-white dark:text-slate-900 px-4 py-3 rounded-xl shadow-lg hidden z-30"></div>
+
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+const CHAVE='quintal:v1', MIGRADO='quintal:migrado';
+
+/* ============ CONFIGURAÇÃO DO FIREBASE: cole aqui os dados do seu projeto ============ */
+const FIREBASE_CONFIG={
+  apiKey:"COLE_AQUI_SUA_API_KEY",
+  authDomain:"SEU-PROJETO.firebaseapp.com",
+  databaseURL:"https://SEU-PROJETO-default-rtdb.firebaseio.com",
+  projectId:"SEU-PROJETO",
+  appId:"COLE_AQUI_SEU_APP_ID"
+};
+const NUVEM_CAMINHO='jambalaya/estado';
+/* ====================================================================================== */
+const CONTAS=[{k:'agua',ic:'💧',nome:'Água'},{k:'luz',ic:'⚡',nome:'Luz'}];
+const MESES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const $=s=>document.querySelector(s);
+const brl=n=>n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const p2=n=>String(n).padStart(2,'0');
+
+const padrao=()=>({valores:{agua:50,luz:80},familias:[1,2,3,4,5].map(n=>({nome:'Família '+n,casa:'Casa '+n})),pagos:{},fundos:[],valoresMes:{}});
+function normalizar(d){
+  const b=padrao(),o=Object.assign({},b,d||{});
+  const fam=Object.values(o.familias||{}).filter(Boolean).map((f,i)=>({nome:f.nome||('Família '+(i+1)),casa:f.casa||('Casa '+(i+1))}));
+  o.familias=fam.length?fam:b.familias;
+  o.valores=o.valores||b.valores;o.pagos=o.pagos||{};o.valoresMes=o.valoresMes||{};
+  o.fundos=Object.values(o.fundos||{}).filter(Boolean).map(f=>Object.assign({},f,{contribs:f.contribs||{}}));
+  return o;
+}
+function carregar(){try{const d=JSON.parse(localStorage.getItem(CHAVE));if(d&&d.familias)return normalizar(d)}catch(e){}return padrao()}
+function salvar(){
+  try{localStorage.setItem(CHAVE,JSON.stringify(S))}catch(e){aviso('⚠️ Não consegui salvar neste aparelho.')}
+  if(nuvem){
+    try{nuvem.set(JSON.parse(JSON.stringify(S))).catch(()=>aviso('⚠️ Não consegui enviar para a nuvem.'))}
+    catch(e){aviso('⚠️ Não consegui enviar para a nuvem.')}
+  }
+}
+let S=carregar(), mesAtual='', nuvem=null;
+
+/* ---------- datas ---------- */
+const hojeISO=()=>{const d=new Date();return `${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`};
+const dataBR=iso=>{const [a,m,d]=iso.split('-');return `${d}/${m}/${a}`};
+const dm=iso=>{const [,m,d]=iso.split('-');return `${d}/${m}`};
+const nomeMes=ym=>{const [a,m]=ym.split('-');return `${MESES[+m-1]} / ${a}`};
+function listaMeses(){
+  const out=[];
+  for(let a=2026;a<=2027;a++)for(let m=1;m<=12;m++){if(a===2026&&m<6)continue;out.push(`${a}-${p2(m)}`)}
+  return out;
+}
+const MES_LISTA=listaMeses();
+
+/* ---------- relógio ---------- */
+function agoraTexto(){const d=new Date();return `${p2(d.getDate())}/${p2(d.getMonth()+1)}/${d.getFullYear()} às ${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}`}
+function tick(){const d=new Date();const dias=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];$('#relogio').textContent=`${dias[d.getDay()]}, ${agoraTexto().replace(' às ',' - ')}`}
+
+/* ---------- dados ---------- */
+const chave=(mes,i,k)=>`${mes}|${i}|${k}`;
+const vtxt=v=>v==null?'a definir':brl(v);
+function valorMes(mes,i,k){const m=S.valoresMes[mes];return m&&m[i]&&typeof m[i][k]==='number'?m[i][k]:null}
+function itens(mes){
+  const r=[];
+  S.familias.forEach((f,i)=>CONTAS.forEach(c=>{
+    const pg=S.pagos[chave(mes,i,c.k)];
+    r.push({i,fam:f,conta:c,mes,pago:!!pg,data:pg?pg.data:null,valor:pg?pg.valor:valorMes(mes,i,c.k)});
+  }));
+  return r;
+}
+
+/* ---------- render ---------- */
+function render(){
+  const it=itens(mesAtual),pagos=it.filter(x=>x.pago),pend=it.filter(x=>!x.pago);
+  const soma=a=>a.reduce((t,x)=>t+x.valor,0);
+  $('#totPago').textContent=brl(soma(pagos));
+  $('#totPend').textContent=brl(soma(pend));
+  $('#qtdPago').textContent=`${pagos.length} de ${it.length} quitadas`;
+  $('#qtdPend').textContent=`${pend.length} de ${it.length} pendentes`;
+  $('#tituloGeral').textContent=`Situação das ${S.familias.length} Famílias`;
+  $('#cards').innerHTML=S.familias.map((f,i)=>`
+    <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4">
+      <div class="text-xl font-bold">${esc(f.nome)} <span class="font-normal text-base opacity-80">(${esc(f.casa)})</span></div>
+      <div class="mt-2 space-y-2">
+        ${it.filter(x=>x.i===i).map(x=>`
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="${x.conta.k==='agua'?'bg-sky-100 text-sky-900 dark:bg-sky-900 dark:text-sky-50':'bg-amber-100 text-amber-900 dark:bg-amber-900 dark:text-amber-50'} rounded-full px-3 py-1 font-semibold">${x.conta.ic} ${x.conta.nome}: ${vtxt(x.valor)}</span>
+            ${x.pago
+              ?`<span class="bg-green-100 text-green-900 dark:bg-green-900 dark:text-green-50 rounded-full px-3 py-1 font-semibold">🟢 PAGO em ${dm(x.data)}</span>`
+              :x.valor==null?`<span class="bg-slate-200 text-slate-800 dark:bg-slate-700 dark:text-slate-50 rounded-full px-3 py-1 font-semibold">⏳ VALOR A DEFINIR</span>`:`<span class="bg-red-100 text-red-900 dark:bg-red-900 dark:text-red-50 rounded-full px-3 py-1 font-semibold">🔴 PENDENTE</span>`}
+          </div>`).join('')}
+      </div>
+    </div>`).join('');
+  renderHist();renderFundos();renderValoresForm();renderMeu();
+  $('#fPagarMes').textContent='Mês selecionado: '+nomeMes(mesAtual);
+}
+function renderHist(){
+  const busca=$('#hBusca').value.trim().toLowerCase(), mes=$('#hMes').value, st=$('#hStatus').value;
+  const meses=mes==='todos'?MES_LISTA:[mes];
+  let r=meses.flatMap(m=>itens(m)).filter(x=>x.fam.nome.toLowerCase().includes(busca));
+  if(st==='pago')r=r.filter(x=>x.pago);
+  if(st==='pend')r=r.filter(x=>!x.pago);
+  r.sort((a,b)=>(b.data||'').localeCompare(a.data||'')||b.mes.localeCompare(a.mes)||a.i-b.i);
+  $('#hLinhas').innerHTML=r.length?r.map(x=>`
+    <tr class="border-t border-slate-200 dark:border-slate-700">
+      <td class="p-3 font-semibold">${esc(x.fam.nome)}</td>
+      <td class="p-3 whitespace-nowrap">${x.conta.ic} ${x.conta.nome}</td>
+      <td class="p-3 whitespace-nowrap">${nomeMes(x.mes)}</td>
+      <td class="p-3 whitespace-nowrap">${vtxt(x.valor)}</td>
+      <td class="p-3 whitespace-nowrap">${x.pago?'🟢 Pago em '+dataBR(x.data):'🔴 Pendente'}</td>
+    </tr>`).join('')
+    :`<tr><td colspan="5" class="p-4 text-center opacity-80">Nenhum registro encontrado. Mude os filtros acima.</td></tr>`;
+}
+function montarSelects(){
+  const opMes=MES_LISTA.map(m=>`<option value="${m}">${nomeMes(m)}</option>`).join('');
+  const vh=$('#hMes').value||'todos',vp=$('#pFam').value;
+  $('#mes').innerHTML=opMes;
+  $('#hMes').innerHTML='<option value="todos">Todos os meses</option>'+opMes;
+  $('#minhaFam').innerHTML='<option value="">— Escolha seu nome —</option>'+S.familias.map((f,i)=>`<option value="${i}">${esc(f.nome)}</option>`).join('');
+  try{$('#minhaFam').value=localStorage.getItem('quintal:minhaFam')||''}catch(e){}
+  $('#pFam').innerHTML=S.familias.map((f,i)=>`<option value="${i}">${esc(f.nome)} (${esc(f.casa)})</option>`).join('');
+  if(vp)$('#pFam').value=vp;
+  if(mesAtual)$('#mes').value=mesAtual;
+  $('#hMes').value=vh;
+  if(!$('#nomesCampos').contains(document.activeElement)){
+    const cls='rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 px-3 py-2';
+    $('#nomesCampos').innerHTML=S.familias.map((f,i)=>`
+      <div class="grid grid-cols-2 gap-2">
+        <input data-nome="${i}" value="${esc(f.nome)}" aria-label="Nome da família ${i+1}" class="${cls}">
+        <input data-casa="${i}" value="${esc(f.casa)}" aria-label="Casa da família ${i+1}" class="${cls}">
+      </div>`).join('');
+  }
+}
+
+/* ---------- caixinha (Outros) ---------- */
+const totFundo=f=>Object.values(f.contribs).reduce((t,c)=>t+c.valor,0);
+const sugerido=f=>f.sugerido>0?f.sugerido:f.meta/S.familias.length;
+function renderFundos(){
+  const F=S.fundos;
+  const tot=F.reduce((t,f)=>t+totFundo(f),0);
+  const falta=F.reduce((t,f)=>t+Math.max(0,f.meta-totFundo(f)),0);
+  const meta=F.reduce((t,f)=>t+f.meta,0);
+  $('#fundoResumo').innerHTML=F.length?`
+    <div class="grid grid-cols-2 gap-3">
+      <div class="rounded-xl border-2 border-green-600 bg-white dark:bg-slate-900 p-3">
+        <div class="text-sm">Total na caixinha</div>
+        <div class="text-2xl font-extrabold text-green-700 dark:text-green-400">${brl(tot)}</div>
+        <div class="text-sm">${F.length} caixinha(s)</div>
+      </div>
+      <div class="rounded-xl border-2 border-red-600 bg-white dark:bg-slate-900 p-3">
+        <div class="text-sm">Falta para a meta</div>
+        <div class="text-2xl font-extrabold text-red-700 dark:text-red-400">${brl(falta)}</div>
+        <div class="text-sm">Meta total: ${brl(meta)}</div>
+      </div>
+    </div>`:'';
+  $('#fundoCards').innerHTML=F.length?F.map(f=>{
+    const t=totFundo(f),pct=f.meta>0?Math.min(100,Math.round(t/f.meta*100)):0,fl=Math.max(0,f.meta-t),sug=sugerido(f);
+    return `<div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4">
+      <div class="flex items-start justify-between gap-2">
+        <div class="text-xl font-bold">${esc(f.nome)}</div>
+        <button data-delfundo="${f.id}" class="text-sm text-red-700 dark:text-red-400 underline shrink-0" aria-label="Apagar caixinha ${esc(f.nome)}">🗑️ Apagar</button>
+      </div>
+      <div class="mt-2">Arrecadado: <b class="text-green-700 dark:text-green-400">${brl(t)}</b> de ${brl(f.meta)}</div>
+      <div class="mt-2 h-5 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100"><div class="h-full bg-green-600" style="width:${pct}%"></div></div>
+      <div class="text-sm mt-1">${pct}% da meta — ${fl>0?'faltam '+brl(fl):'meta alcançada! 🎉'}</div>
+      <div class="mt-3 space-y-2">${S.familias.map((fa,i)=>{const c=f.contribs[i];return `
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="font-semibold">${esc(fa.nome)}</span>
+          ${c?`<span class="bg-green-100 text-green-900 dark:bg-green-900 dark:text-green-50 rounded-full px-3 py-1 font-semibold">🟢 PAGO ${brl(c.valor)} em ${dm(c.data)}</span>`
+             :`<span class="bg-red-100 text-red-900 dark:bg-red-900 dark:text-red-50 rounded-full px-3 py-1 font-semibold">🔴 PENDENTE (sugerido ${brl(sug)})</span>`}
+        </div>`}).join('')}</div>
+    </div>`}).join('')
+    :`<p class="rounded-xl bg-white dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-600 p-4">Nenhuma caixinha criada ainda. Use o formulário “Nova caixinha” aqui embaixo para criar a primeira.</p>`;
+  const sel=$('#cFundo'),v=sel.value;
+  sel.innerHTML=F.map(f=>`<option value="${f.id}">${esc(f.nome)}</option>`).join('')||'<option value="">Crie uma caixinha primeiro</option>';
+  if(F.some(f=>f.id===v))sel.value=v;
+  const sf=$('#cFam'),vf=sf.value;
+  sf.innerHTML=S.familias.map((f,i)=>`<option value="${i}">${esc(f.nome)} (${esc(f.casa)})</option>`).join('');
+  if(vf)sf.value=vf;
+  if(!$('#cValor').value)preencherValor();
+}
+function preencherValor(){const f=S.fundos.find(x=>x.id===$('#cFundo').value);$('#cValor').value=f?sugerido(f).toFixed(2):''}
+
+/* ---------- avisos ---------- */
+let tAviso;
+function aviso(t){const a=$('#aviso');a.textContent=t;a.classList.remove('hidden');clearTimeout(tAviso);tAviso=setTimeout(()=>a.classList.add('hidden'),2800)}
+
+/* ---------- abas ---------- */
+function abrirAba(nome){
+  ['geral','hist','admin','outros'].forEach(n=>$('#aba-'+n).classList.toggle('hidden',n!==nome));
+  document.querySelectorAll('.aba').forEach(b=>{
+    const on=b.dataset.aba===nome;
+    b.classList.toggle('border-b-4',on);b.classList.toggle('border-[#16305a]',on);
+    b.classList.toggle('dark:border-sky-400',on);b.classList.toggle('text-[#16305a]',on);
+    b.classList.toggle('dark:text-sky-300',on);b.setAttribute('aria-selected',on);if(on&&b.scrollIntoView)b.scrollIntoView({inline:'center',block:'nearest'});
+  });
+}
+
+/* ---------- tema ---------- */
+function aplicarTema(escuro){
+  document.documentElement.classList.toggle('dark',escuro);
+  $('#btnTema').textContent=escuro?'☀️':'🌙';
+  try{localStorage.setItem('quintal:tema',escuro?'escuro':'claro')}catch(e){}
+}
+
+/* ---------- resumo WhatsApp ---------- */
+function textoZap(){
+  const it=itens(mesAtual),pg=it.filter(x=>x.pago),pd=it.filter(x=>!x.pago);
+  const soma=a=>brl(a.reduce((t,x)=>t+x.valor,0));
+  let t=`*🏠 Jambalaya — ${nomeMes(mesAtual)}*\n\n🟢 Arrecadado: ${soma(pg)} (${pg.length} de ${it.length})\n🔴 Falta pagar: ${soma(pd)} (${pd.length} de ${it.length})\n`;
+  S.familias.forEach((f,i)=>{
+    t+=`\n*${f.nome}* (${f.casa})\n`;
+    it.filter(x=>x.i===i).forEach(x=>{t+=`${x.conta.ic} ${x.conta.nome} ${vtxt(x.valor)} — ${x.pago?'🟢 Pago em '+dm(x.data):'🔴 Pendente'}\n`});
+  });
+  if(S.fundos.length){
+    t+='\n\n*🏦 Caixinha do quintal*\n';
+    S.fundos.forEach(f=>{
+      t+=`\n*${f.nome}* — ${brl(totFundo(f))} de ${brl(f.meta)}\n`;
+      S.familias.forEach((fa,i)=>{const c=f.contribs[i];t+=`${fa.nome}: ${c?'🟢 '+brl(c.valor)+' em '+dm(c.data):'🔴 Pendente'}\n`});
+    });
+  }
+  return t.trim();
+}
+async function copiar(txt){
+  try{await navigator.clipboard.writeText(txt);return true}catch(e){
+    const ta=document.createElement('textarea');ta.value=txt;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();
+    let ok=false;try{ok=document.execCommand('copy')}catch(e2){}ta.remove();return ok;
+  }
+}
+
+/* ---------- eventos ---------- */
+$('#btnTema').onclick=()=>aplicarTema(!document.documentElement.classList.contains('dark'));
+$('#btnZap').onclick=async()=>aviso(await copiar(textoZap())?'✅ Resumo copiado! Cole no WhatsApp.':'⚠️ Não deu para copiar. Tente de novo.');
+$('#mes').onchange=e=>{mesAtual=e.target.value;render()};
+document.querySelectorAll('.aba').forEach(b=>b.onclick=()=>abrirAba(b.dataset.aba));
+['hBusca','hMes','hStatus'].forEach(id=>$('#'+id).addEventListener('input',renderHist));
+
+$('#fPagar').onsubmit=e=>{
+  e.preventDefault();
+  const i=+$('#pFam').value,k=$('#pConta').value,data=$('#pData').value||hojeISO();
+  const v=valorMes(mesAtual,i,k);
+  if(v==null)return aviso('⚠️ Defina primeiro o valor desta casa em “Valores de cada casa”.');
+  S.pagos[chave(mesAtual,i,k)]={data,valor:v};
+  salvar();render();aviso('✅ Pagamento registrado!');
+};
+$('#btnDesfazer').onclick=()=>{
+  const i=+$('#pFam').value,k=$('#pConta').value,c=chave(mesAtual,i,k);
+  if(!S.pagos[c])return aviso('Esta conta já está pendente.');
+  delete S.pagos[c];salvar();render();aviso('↩️ Pagamento desfeito.');
+};
+$('#fValores').onsubmit=e=>{
+  e.preventDefault();
+  const arr=[];let ok=true,algum=false;
+  S.familias.forEach((f,i)=>{
+    const r={};
+    [['agua','va'],['luz','vl']].forEach(([k,a])=>{
+      const raw=document.querySelector(`[data-${a}="${i}"]`).value.trim();
+      if(raw==='')return;
+      const n=parseFloat(raw);
+      if(isNaN(n)||n<0)ok=false;else{r[k]=n;algum=true}
+    });
+    arr.push(r);
+  });
+  if(!ok)return aviso('⚠️ Digite valores válidos.');
+  if(algum)S.valoresMes[mesAtual]=arr;else delete S.valoresMes[mesAtual];
+  salvar();render();aviso('✅ Valores de '+nomeMes(mesAtual)+' salvos!');
+};
+$('#fNomes').onsubmit=e=>{
+  e.preventDefault();
+  S.familias=S.familias.map((f,i)=>({
+    nome:document.querySelector(`[data-nome="${i}"]`).value.trim()||f.nome,
+    casa:document.querySelector(`[data-casa="${i}"]`).value.trim()||f.casa
+  }));
+  salvar();montarSelects();render();aviso('✅ Nomes salvos!');
+};
+$('#btnLimpar').onclick=()=>{
+  if(confirm('Atenção: isso apaga TODOS os pagamentos, valores e caixinhas de TODOS os celulares. Tem certeza?')&&confirm('Última confirmação: apagar tudo mesmo? Não dá para desfazer.')){
+    S=padrao();salvar();montarSelects();$('#mes').value=mesAtual;render();aviso('Dados apagados.');
+  }
+};
+
+$('#fNovoFundo').onsubmit=e=>{
+  e.preventDefault();
+  const nome=$('#nfNome').value.trim(),meta=parseFloat($('#nfMeta').value),sug=parseFloat($('#nfSug').value)||0;
+  if(!nome||isNaN(meta)||meta<=0)return aviso('⚠️ Preencha o nome e a meta.');
+  S.fundos.push({id:Date.now().toString(36),nome,meta,sugerido:sug,contribs:{}});
+  salvar();e.target.reset();$('#cValor').value='';render();aviso('✅ Caixinha criada!');
+};
+$('#cFundo').onchange=preencherValor;
+$('#fContrib').onsubmit=e=>{
+  e.preventDefault();
+  const f=S.fundos.find(x=>x.id===$('#cFundo').value),valor=parseFloat($('#cValor').value);
+  if(!f)return aviso('⚠️ Crie uma caixinha primeiro.');
+  if(isNaN(valor)||valor<=0)return aviso('⚠️ Digite um valor válido.');
+  f.contribs[$('#cFam').value]={valor,data:$('#cData').value||hojeISO()};
+  salvar();render();aviso('✅ Contribuição registrada!');
+};
+$('#btnDesfazerC').onclick=()=>{
+  const f=S.fundos.find(x=>x.id===$('#cFundo').value),i=$('#cFam').value;
+  if(!f||!f.contribs[i])return aviso('Esta família ainda não contribuiu.');
+  delete f.contribs[i];salvar();render();aviso('↩️ Contribuição desfeita.');
+};
+$('#fundoCards').onclick=e=>{
+  const b=e.target.closest('[data-delfundo]');if(!b)return;
+  const f=S.fundos.find(x=>x.id===b.dataset.delfundo);
+  if(f&&confirm(`Apagar a caixinha “${f.nome}” e tudo o que foi registrado nela?`)){
+    S.fundos=S.fundos.filter(x=>x.id!==f.id);salvar();$('#cValor').value='';render();aviso('Caixinha apagada.');
+  }
+};
+
+/* ---------- valores por casa + "minha casa" ---------- */
+function renderValoresForm(){
+  if($('#valoresCampos').children.length&&$('#valoresCampos').contains(document.activeElement))return;
+  const salvo=S.valoresMes[mesAtual];
+  let base=salvo;
+  if(!base){const ant=Object.keys(S.valoresMes).filter(m=>m<mesAtual).sort().pop();base=ant?S.valoresMes[ant]:null}
+  $('#fValoresMes').textContent='Mês selecionado: '+nomeMes(mesAtual)+(salvo?'':' — valores ainda não definidos'+(base?' (começando com os do último mês definido)':''));
+  const cls='mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-800 px-3 py-2 text-lg';
+  $('#valoresCampos').innerHTML=S.familias.map((f,i)=>{
+    const b=(base&&base[i])||{},v=k=>typeof b[k]==='number'?b[k]:'';
+    return `<div class="rounded-lg border border-slate-200 dark:border-slate-700 p-3">
+      <div class="font-bold mb-2">${esc(f.nome)} (${esc(f.casa)})</div>
+      <div class="grid grid-cols-2 gap-2">
+        <label class="block text-sm">💧 Água (R$)<input data-va="${i}" type="number" step="0.01" min="0" inputmode="decimal" value="${v('agua')}" placeholder="0,00" class="${cls}"></label>
+        <label class="block text-sm">⚡ Luz (R$)<input data-vl="${i}" type="number" step="0.01" min="0" inputmode="decimal" value="${v('luz')}" placeholder="0,00" class="${cls}"></label>
+      </div></div>`}).join('');
+}
+function renderMeu(){
+  const mi=$('#minhaFam').value,box=$('#meuValor');
+  if(mi===''){box.innerHTML=`<p>Escolha seu nome acima para ver quanto você paga em <b>${nomeMes(mesAtual)}</b>.</p>`;return}
+  const mine=itens(mesAtual).filter(x=>x.i===+mi);
+  const tot=mine.reduce((t,x)=>t+x.valor,0),falta=mine.filter(x=>!x.pago).reduce((t,x)=>t+x.valor,0),indef=mine.some(x=>x.valor==null&&!x.pago);
+  box.innerHTML=`<div class="font-semibold mb-1">${esc(S.familias[+mi].nome)} — ${nomeMes(mesAtual)}</div>
+    <div class="space-y-1">${mine.map(x=>`<div class="flex flex-wrap items-center justify-between gap-2 text-lg">
+      <span>${x.conta.ic} ${x.conta.nome}</span><span class="font-extrabold">${vtxt(x.valor)}</span>
+      <span class="text-sm">${x.pago?'🟢 Pago em '+dm(x.data):x.valor==null?'⏳ A definir':'🔴 Pendente'}</span></div>`).join('')}</div>
+    <div class="border-t border-amber-300 dark:border-slate-600 mt-2 pt-2 flex justify-between text-xl"><span class="font-bold">Total do mês</span><span class="font-extrabold">${brl(tot)}</span></div>
+    <div class="mt-1 text-lg">${falta>0?`🔴 Falta pagar: <b>${brl(falta)}</b>`:indef?'⏳ O valor deste mês ainda não foi definido.':'🟢 Tudo pago neste mês. Obrigado!'}</div>`;
+}
+$('#minhaFam').onchange=e=>{try{localStorage.setItem('quintal:minhaFam',e.target.value)}catch(err){}renderMeu()};
+
+/* ---------- nuvem (Firebase Realtime Database) ---------- */
+function nuvemAtiva(){
+  return typeof firebase!=='undefined'&&/^https:\/\//.test(FIREBASE_CONFIG.databaseURL)&&FIREBASE_CONFIG.databaseURL.indexOf('SEU-PROJETO')<0;
+}
+function estadoNuvem(e){
+  const t={on:'☁️ Ao vivo',off:'📴 Sem conexão',local:'💾 Só neste aparelho',erro:'⚠️ Nuvem indisponível'}[e]||'';
+  $('#nuvem').textContent=t?'· '+t:'';
+}
+function aplicarRemoto(d){
+  S=d?normalizar(d):padrao();
+  if(d){try{localStorage.setItem(CHAVE,JSON.stringify(S))}catch(e){}}
+  montarSelects();render();
+}
+function iniciarNuvem(){
+  if(!nuvemAtiva()){estadoNuvem('local');return}
+  try{
+    if(!firebase.apps.length)firebase.initializeApp(FIREBASE_CONFIG);
+    const db=firebase.database();
+    nuvem=db.ref(NUVEM_CAMINHO);
+    db.ref('.info/connected').on('value',s=>estadoNuvem(s.val()?'on':'off'));
+    let primeira=true;
+    nuvem.on('value',snap=>{
+      const d=snap.val();
+      if(d){
+        try{localStorage.setItem(MIGRADO,'1')}catch(e){}
+        aplicarRemoto(d);
+      }else if(primeira&&localStorage.getItem(CHAVE)&&!localStorage.getItem(MIGRADO)){
+        // nuvem vazia: envia os dados que já existiam neste aparelho (só na primeira vez)
+        try{localStorage.setItem(MIGRADO,'1')}catch(e){}
+        salvar();
+      }else{
+        aplicarRemoto(null);
+      }
+      primeira=false;
+    },()=>{estadoNuvem('erro');aviso('⚠️ Sem acesso à nuvem. Confira as regras do banco.')});
+  }catch(e){nuvem=null;estadoNuvem('erro')}
+}
+
+/* ---------- instalar como app ---------- */
+let adiado=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();adiado=e;$('#btnInstalar').classList.remove('hidden')});
+window.addEventListener('appinstalled',()=>$('#btnInstalar').classList.add('hidden'));
+$('#btnInstalar').onclick=async()=>{
+  if(!adiado)return;
+  adiado.prompt();
+  try{await adiado.userChoice}catch(e){}
+  adiado=null;$('#btnInstalar').classList.add('hidden');
+};
+
+/* ---------- início ---------- */
+(function iniciar(){
+  aplicarTema(document.documentElement.classList.contains('dark'));
+  montarSelects();
+  mesAtual=`${new Date().getFullYear()}-${p2(new Date().getMonth()+1)}`;
+  if(!MES_LISTA.includes(mesAtual))mesAtual=mesAtual<MES_LISTA[0]?MES_LISTA[0]:MES_LISTA[MES_LISTA.length-1];
+  $('#mes').value=mesAtual;$('#hMes').value='todos';$('#pData').value=hojeISO();$('#cData').value=hojeISO();
+  abrirAba('geral');render();iniciarNuvem();
+  try{localStorage.removeItem('quintal:acessos')}catch(e){}
+  tick();setInterval(tick,1000);
+})();
+</script>
+</body>
+</html>
